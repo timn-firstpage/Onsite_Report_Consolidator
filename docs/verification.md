@@ -1,0 +1,17 @@
+# Verification — 2026-10-15
+
+Windows, bundled Python 3.12 / openpyxl. Runtime dependencies for the deployed skill remain Python 3.10+ and openpyxl 3.1.5+. The development repository is separate from installed skills.
+
+- Offline suite: 39 tests, including combined and future split layouts; raw status fidelity with incomplete evidence; filename/company/date/check coverage; duplicate selection and conflicting split IDs; wrong page hosts versus allowed resource destinations; required/missing/unnamed fields; merged inputs; source formulas; source count reconciliation; literal URL validation; template formulas/styles/static notes; unchanged GSC; missing checks; navigation; website links; provenance; output collision and later tampering.
+- Real provided historical ZIP: eight explicitly selected onsite reports, 37 check results, 1,086 problem-detail rows. The GSC workbook was excluded completely. Missing template checks use `-` / `未检查`, except GSC and the non-status CMS input. Only declared local files were read.
+- Output verification: 197 native internal hyperlinks and 2,134 imported website/resource links. All written cell values and hyperlinks are checked after reopening; untouched effective cell styles, values, formulas, links, comments, merges, data validation, sheet order and image/chart counts are compared to the template.
+- Independent review/forward test: inspect → build → verify succeeded on a native-layout fixture and explicit subset; a repeated build refused overwrite. Three reader defects were independently reproduced (unnamed evidence cells, plural count claims, merged inputs); regression tests failed before the fixes and the full suite passed afterward.
+- Template roundtrip normalization: duplicate style indexes and equivalent boolean defaults are compared by effective style. Numeric template serialization noise is normalized to 14 significant digits for preservation comparisons; source IDs, result tokens and integer evidence counts are checked exactly.
+- Official skill `quick_validate.py`: valid. PyYAML was installed only in an ignored validation directory, not added to runtime dependencies.
+- Thirty-three preview ranges were rendered across the main Checklist and all 16 populated detail worksheets, including summary blocks after long evidence tables. Relevant main/detail/summary previews were inspected; row heights wrap new content. Imported evidence tables remain in their native template columns. Template screenshots are explicitly labelled reference-only.
+
+## Limits
+
+The supplied template already has 69 formula/anchor diagnostics: Summary missing-sheet/#REF references, Google-export placeholder formulas and Google `heading`/`gid` anchors. They remain unchanged and are listed in the run's `.validation.json`; the report does not claim those original features work in native Excel. The preview renderer emits the inherited missing-sheet diagnostics and returns a nonzero process status despite producing all requested PNGs; it is not used as formula/recalculation proof.
+
+Native Excel recalculation/click testing, actual macOS execution, HTTPS source-schema integration and Drive input/download/upload were not performed. No service account file or credential was read. Customer source reports, generated reports, manifests and previews are excluded from Git.

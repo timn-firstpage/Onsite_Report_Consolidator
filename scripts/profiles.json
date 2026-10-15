@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "main_sheet": "SEO Implementation Checklist",
+  "checklist_sheets": ["Checklist"],
+  "required_detail_fields": {
+    "robots_audit": ["address", "issue", "instruction"],
+    "sitemap_audit": ["sitemap", "address", "instruction"],
+    "pagination_audit": ["address", "issue", "instruction"],
+    "hreflang_audit": ["address", "issue", "instruction"],
+    "page_titles_audit": ["address"],
+    "meta_descriptions_audit": ["address"],
+    "headings_audit": ["address"],
+    "images_audit": ["address", "destination"]
+  },
+  "checklist_columns": {
+    "id": ["Item No.", "Item No", "Check"],
+    "name": ["Item Name"],
+    "status": ["Initial Check", "Check Result", "Result"],
+    "findings": ["Findings"],
+    "instruction": ["Instruction", "Instructions"]
+  },
+  "topics": {
+    "https_audit": {"aliases": ["https_audit"], "ids": ["9.1", "9.2", "9.3"], "source_sheets": ["9. Implement HTTPS Protocol"], "targets": {"9.1":"9. Implement HTTPS Protocol", "9.2":"9. Implement HTTPS Protocol", "9.3":"9. Implement HTTPS Protocol"}},
+    "robots_audit": {"aliases": ["robots_audit"], "ids": ["10.1", "10.2", "10.3", "10.4", "10.5", "10.6", "10.7"], "source_sheets": ["10. Robot.txt", "10. Robots.txt"], "targets": {"10.1":"10. Robots.txt", "10.2":"10. Robots.txt", "10.3":"10. Robots.txt", "10.4":"10. Robots.txt", "10.5":"10. Robots.txt", "10.6":"10. Robots.txt", "10.7":"10. Robots.txt"}},
+    "sitemap_audit": {"aliases": ["sitemap_audit"], "ids": ["11.1", "11.2", "11.3", "11.4", "11.5", "11.6", "11.7", "11.8", "11.9"], "source_sheets": ["11. Sitemap"], "targets": {"11.1":"11. Sitemap", "11.2":"11. Sitemap", "11.3":"11. Sitemap", "11.4":"11. Sitemap", "11.5":"11. Sitemap", "11.6":"11. Sitemap", "11.7":"11. Sitemap", "11.8":"11. Sitemap", "11.9":"11. Sitemap"}},
+    "pagination_audit": {"aliases": ["pagination_audit", "onsite_pagination_audit"], "ids": ["14.1", "14.2", "14.3", "14.4", "14.5", "14.6"], "source_sheets": ["14. Pagination"], "targets": {"14.1":"14. Pagination", "14.2":"14. Pagination", "14.3":"14. Pagination", "14.4":"14. Pagination", "14.5":"14. Pagination", "14.6":"14. Pagination"}},
+    "hreflang_audit": {"aliases": ["hreflang_audit", "onsite_hreflang_audit"], "ids": ["15.1", "15.2", "15.3"], "source_sheets": ["15. HREFLANG", "15. Hreflang tag"], "targets": {"15.1":"15. Hreflang tag", "15.2":"15. Hreflang tag", "15.3":"15. Hreflang tag"}},
+    "page_titles_audit": {"aliases": ["page_titles_audit"], "ids": ["17.1", "17.2", "17.3", "17.4"], "source_sheets": ["17. Page Title"], "targets": {"17.1":"17.1 Page titles - Missing", "17.2":"17.2 Page titles - Duplicate", "17.3":"17.3 Page Titles - Too Long", "17.4":"17.4 Page Titles - Multiple"}},
+    "meta_descriptions_audit": {"aliases": ["meta_descriptions_audit"], "ids": ["18.1", "18.2", "18.3"], "source_sheets": ["18. meta_description"], "targets": {"18.1":"18. Descriptions - Missing", "18.2":"18.2 Descriptions - Duplicate", "18.3":"18.3 Descriptions - Too Long"}},
+    "headings_audit": {"aliases": ["headings_audit"], "ids": ["19.1", "19.2", "19.3"], "source_sheets": ["19. Heading"], "targets": {"19.1":"19.1 H1 - Missing", "19.2":"19.2 H1 - Duplicate", "19.3":"19.3 H1 - Multiple"}},
+    "images_audit": {"aliases": ["images_audit"], "ids": ["20.1", "20.2"], "source_sheets": ["20. Image"], "targets": {"20.1":"20.1 Image - Alt Text Missing", "20.2":"20.2 Image - Oversize"}}
+  },
+  "field_aliases": {
+    "id": ["Item No.", "Item No"],
+    "address": ["Address", "URLs Example", "URL Example", "Source"],
+    "destination": ["Destination"],
+    "sitemap": ["Sitemaps"],
+    "issue": ["Issue", "Issues", "Issue Description", "Remarks"],
+    "instruction": ["Instruction", "Instructions", "How to Fix", "Specific Instructions (If have)", "Instructions (If have)"],
+    "title1": ["Title 1", "Title - 1", "Titles"],
+    "title2": ["Title 2", "Title - 2"],
+    "newtitle": ["New Title"],
+    "revisedtitle": ["Revised Title"],
+    "titlewidth": ["Title 1 Pixel Width", "Pixel Width ( max 580 pixels)"],
+    "description": ["Meta Description 1", "Meta Description"],
+    "pixels": ["Pixel Width"],
+    "h1": ["H1-1", "H1"],
+    "h2": ["H1-2"],
+    "bytes": ["Size (Bytes)"],
+    "screenshot": ["Screenshots (If have)", "Screenshots (If Applicable)", "Screenshots (If Have)", "Example Screenshots (If Applicable)"],
+    "anchor": ["Anchor Text"]
+  }
+}

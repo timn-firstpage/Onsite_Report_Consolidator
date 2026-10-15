@@ -1,0 +1,4 @@
+interface:
+  display_name: "Onsite Report Consolidator"
+  short_description: "Consolidate onsite Excel reports with validated mappings"
+  default_prompt: "Use $onsite-report-consolidator to combine the explicitly selected onsite audit reports into my Checklist template."
