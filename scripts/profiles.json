@@ -1,6 +1,7 @@
 {
   "version": 1,
   "main_sheet": "SEO Implementation Checklist",
+  "output_main_sheet": "(auto) SEO Checklist",
   "checklist_sheets": ["Checklist"],
   "required_detail_fields": {
     "robots_audit": ["address", "issue", "instruction"],

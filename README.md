@@ -2,6 +2,8 @@
 
 独立 Codex Skill，把明确指定的一次 onsite 审计 Excel 输出填入原 Checklist 模板，保留每个子项结果、Findings、Instruction、详情和导航。排除 GSC 第 7 系列；不负责审计、Drive 凭据、下载或上传。
 
+输出主表名为 `(auto) SEO Checklist`。`Human check` 独立保留并加入 onsite 下拉选项；未检查使用 `-`。主表重命名会同步更新引用及返回链接，GSC 的值和下拉选项保持原样。
+
 ## 使用
 
 Python 3.10+，Windows / macOS。先在仓库外的 venv 安装 `requirements.txt`，或使用已有包含 openpyxl 的解释器：

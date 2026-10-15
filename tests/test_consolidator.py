@@ -10,6 +10,7 @@ import openpyxl
 from openpyxl.styles import PatternFill
 
 ROOT = Path(__file__).resolve().parents[1]
+OUTPUT_MAIN = '(auto) SEO Checklist'
 sys.path.insert(0, str(ROOT / 'scripts'))
 
 
@@ -83,7 +84,7 @@ class ConsolidationTests(unittest.TestCase):
     def test_human_status_and_original_findings_survive(self):
         self.report(statuses={'11.3':'Human check'})
         r=self.read()
-        self.assertEqual(r['checks']['11.3']['status'],'-')
+        self.assertEqual(r['checks']['11.3']['status'],'Human check')
         self.assertEqual(r['checks']['11.3']['raw_status'],'Human check')
         self.assertEqual(r['checks']['11.3']['findings'],'Source observation')
 
@@ -170,7 +171,7 @@ class ConsolidationTests(unittest.TestCase):
         self.report(statuses={'11.3':'Human check'})
         p=self.build();w=openpyxl.load_workbook(p)
         self.assertEqual(p.name,'Autocheck_onsite_audit_Example Co_2026-10-15.xlsx')
-        s=w['SEO Implementation Checklist']
+        s=w[OUTPUT_MAIN]
         self.assertEqual(s['D2'].value,'original GSC')
         self.assertEqual(s['J2'].value,'=1+2')
         self.assertEqual(s['J2'].fill.fgColor.rgb,'00123456')
@@ -187,7 +188,7 @@ class ConsolidationTests(unittest.TestCase):
         self.assertEqual(s['A4'].hyperlink.target,'https://www.example.com/a')
         self.assertTrue(any(c.value=='17.2' for row in s for c in row))
         self.assertTrue(any('page_titles_audit' in str(c.value) for row in s for c in row))
-        main=w['SEO Implementation Checklist']
+        main=w[OUTPUT_MAIN]
         r=next(row[0].row for row in main if row[1].value=='17.2')
         self.assertEqual(main.cell(r,4).value,'✖')
         self.assertIn('1',main.cell(r,5).value)
@@ -201,7 +202,7 @@ class ConsolidationTests(unittest.TestCase):
     def test_output_tampering_detected(self):
         from workbook import verify
         self.report();p=self.build()
-        w=openpyxl.load_workbook(p);w['SEO Implementation Checklist']['D6']='✖';w.save(p)
+        w=openpyxl.load_workbook(p);w[OUTPUT_MAIN]['D6']='✖';w.save(p)
         with self.assertRaisesRegex(ValueError,'hash|changed'):verify(p)
 
     def test_asset_host_does_not_authorize_foreign_page_urls(self):
@@ -287,7 +288,7 @@ class ConsolidationTests(unittest.TestCase):
         from openpyxl.worksheet.datavalidation import DataValidation
         w=openpyxl.load_workbook(self.template);s=w['SEO Implementation Checklist'];s.append(['','21.1','Other onsite check'])
         row=s.max_row;dv=DataValidation(type='list',formula1='"✔,✖,NA,-"');s.add_data_validation(dv);dv.add(s.cell(row,4));w.save(self.template)
-        self.report();out=self.build();s=openpyxl.load_workbook(out)['SEO Implementation Checklist']
+        self.report();out=self.build();s=openpyxl.load_workbook(out)[OUTPUT_MAIN]
         self.assertEqual(s.cell(row,4).value,'-')
         self.assertIn('未检查',s.cell(row,5).value)
 
@@ -310,6 +311,46 @@ class ConsolidationTests(unittest.TestCase):
     def test_unencoded_whitespace_in_website_url_stops(self):
         self.report('page_titles_audit',[f'17.{i}' for i in range(1,5)], [['17.2','https://www.example.com/a b','old','new','fix']], {'17.2':'X'})
         with self.assertRaisesRegex(ValueError,'URL'):self.read()
+
+    def test_human_check_validation_and_missing_status_are_distinct(self):
+        from openpyxl.worksheet.datavalidation import DataValidation
+        w=openpyxl.load_workbook(self.template);s=w['SEO Implementation Checklist']
+        dv=DataValidation(type='list',formula1='"✔,✖,NA,-"');s.add_data_validation(dv);dv.add('D2:D18');w.save(self.template)
+        self.report(statuses={'11.3':'Human Check'})
+        out=self.build();w=openpyxl.load_workbook(out);s=w[OUTPUT_MAIN]
+        self.assertEqual(s['D8'].value,'Human check')
+        self.assertEqual(s['D3'].value,'-')
+        self.assertIn('未检查',s['E3'].value)
+        self.assertIn('问题数量未确认',s['E8'].value)
+        human_rules=[v for v in s.data_validations.dataValidation if 'D8' in v.sqref]
+        self.assertEqual(len(human_rules),1)
+        self.assertIn('Human check',human_rules[0].formula1)
+        gsc_rules=[v for v in s.data_validations.dataValidation if 'D2' in v.sqref]
+        self.assertEqual(len(gsc_rules),1)
+        self.assertNotIn('Human check',gsc_rules[0].formula1)
+        detail=w['11. Sitemap']
+        summary=next(row for row in detail if row[0].value=='11.3')
+        self.assertEqual(summary[1].value,'Human check')
+        self.assertIsNone(summary[2].value)
+
+    def test_main_rename_updates_formulas_named_ranges_and_return_links(self):
+        from openpyxl.workbook.defined_name import DefinedName
+        w=openpyxl.load_workbook(self.template);s=w['11. Sitemap']
+        s['L2']="='SEO Implementation Checklist'!C1"
+        w.defined_names.add(DefinedName('ChecklistTitle',attr_text="'SEO Implementation Checklist'!$C$1"))
+        w.save(self.template)
+        self.report();out=self.build();w=openpyxl.load_workbook(out)
+        self.assertIn(OUTPUT_MAIN,w.sheetnames)
+        self.assertNotIn('SEO Implementation Checklist',w.sheetnames)
+        self.assertEqual(w['11. Sitemap']['L2'].value,"='(auto) SEO Checklist'!C1")
+        self.assertEqual(w.defined_names['ChecklistTitle'].attr_text,"'(auto) SEO Checklist'!$C$1")
+        self.assertIn("'(auto) SEO Checklist'!",w['11. Sitemap']['A1'].hyperlink.target)
+        self.assertIn('SEO Implementation Checklist',openpyxl.load_workbook(self.template).sheetnames)
+
+    def test_main_is_active_when_template_has_no_workbook_view(self):
+        w=openpyxl.load_workbook(self.template);w.create_sheet('Summary',0);w.views=[];w.save(self.template)
+        self.report();out=self.build();w=openpyxl.load_workbook(out)
+        self.assertEqual(w.active.title,OUTPUT_MAIN)
 
 
 if __name__=='__main__':unittest.main()

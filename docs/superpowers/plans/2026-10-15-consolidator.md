@@ -12,7 +12,7 @@
 
 ## Global Constraints
 - Exclude series 7/GSC; no Drive or credential operations.
-- Status ✔/✖/NA/-; preserve source conclusions and Findings.
+- Status ✔/✖/NA/-/Human check; preserve source conclusions and Findings. Output main sheet `(auto) SEO Checklist`, with references updated.
 - Output Autocheck_onsite_audit_{companyname}_{date}.xlsx beside run inputs; refuse overwrite.
 - Template content outside declared writes remains intact; unknown mappings stop.
 

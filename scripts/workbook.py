@@ -15,6 +15,8 @@ from urllib.parse import urlsplit
 import openpyxl
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.worksheet.hyperlink import Hyperlink
+from openpyxl.worksheet.cell_range import CellRange
+from openpyxl.workbook.views import BookView
 
 from inputs import canonical, check_id, norm, read_run, sha
 
@@ -120,7 +122,7 @@ def navigation(c,sheet,cell):
 
 def evidence_label(check):
     n=check['detail_count']
-    if check['status'] in {'-','NA'}:
+    if check['status'] in {'-','NA','Human check'}:
         return f'问题数量未确认；已提供明细 {n} 条'
     if check['status']=='✔':
         return '来源检查通过；已记录问题明细 0 条（不代表独立复核）'
@@ -164,6 +166,69 @@ def target_rows(main):
         if ident in rows:raise ValueError(f'duplicate template check {ident}')
         rows[ident]=row[0].row
     return rows
+
+
+def extend_human_validation(main,rows):
+    """Extend onsite status lists while preserving excluded GSC cells' original list."""
+    gsc_rows={r for ident,r in rows.items() if ident.startswith('7.')}
+    for validation in list(main.data_validations.dataValidation):
+        formula=str(validation.formula1 or '')
+        if validation.type!='list' or not formula.startswith('"') or not all(x in formula for x in ['✔','✖','NA','-']):continue
+        tokens=formula.strip('"').split(',')
+        if 'Human check' in tokens:continue
+        keep,extend=[],[]
+        for area in validation.sqref.ranges:
+            if not area.min_col<=4<=area.max_col:
+                keep.append(str(area));continue
+            if area.min_col<4:keep.append(str(CellRange(min_col=area.min_col,max_col=3,min_row=area.min_row,max_row=area.max_row)))
+            if area.max_col>4:keep.append(str(CellRange(min_col=5,max_col=area.max_col,min_row=area.min_row,max_row=area.max_row)))
+            start=area.min_row
+            for r in sorted(r for r in gsc_rows if area.min_row<=r<=area.max_row):
+                if start<r:extend.append(f'D{start}:D{r-1}')
+                keep.append(f'D{r}');start=r+1
+            if start<=area.max_row:extend.append(f'D{start}:D{area.max_row}')
+        if not extend:continue
+        updated=copy(validation);updated.sqref=' '.join(extend)
+        updated.formula1='"'+','.join(tokens+['Human check'])+'"'
+        if keep:validation.sqref=' '.join(keep)
+        else:main.data_validations.dataValidation.remove(validation)
+        main.add_data_validation(updated)
+
+
+def rename_main(w,old,new):
+    if old==new:return
+    if not new or len(new)>31 or re.search(r'[\\/*?:\[\]]',new):
+        raise ValueError('output_main_sheet must be a valid Excel worksheet name of at most 31 characters')
+    if any(n.casefold()==new.casefold() for n in w.sheetnames):
+        raise ValueError(f'output main worksheet name already exists: {new}')
+    old_ref="'"+old.replace("'","''")+"'!"
+    new_ref="'"+new.replace("'","''")+"'!"
+    def rewrite(value):
+        return value.replace(old_ref,new_ref) if isinstance(value,str) else value
+    w[old].title=new
+    for s in w:
+        for row in s:
+            for c in row:
+                if c.data_type=='f':c.value=rewrite(c.value)
+                if c.hyperlink:
+                    c.hyperlink.location=rewrite(c.hyperlink.location)
+                    if c.hyperlink.target and c.hyperlink.target.startswith('#'):
+                        c.hyperlink.target=rewrite(c.hyperlink.target)
+        for defined in s.defined_names.values():defined.attr_text=rewrite(defined.attr_text)
+        for validation in s.data_validations.dataValidation:
+            validation.formula1=rewrite(validation.formula1)
+            validation.formula2=rewrite(validation.formula2)
+        for rule_set in s.conditional_formatting:
+            for rule in s.conditional_formatting[rule_set]:
+                if rule.formula:rule.formula=[rewrite(f) for f in rule.formula]
+        for chart in s._charts:
+            for series in chart.series:
+                for field in ['val','cat','xVal','yVal','zVal','tx']:
+                    data=getattr(series,field,None)
+                    for ref in ['numRef','strRef','multiLvlStrRef']:
+                        obj=getattr(data,ref,None)
+                        if obj is not None and getattr(obj,'f',None):obj.f=rewrite(obj.f)
+    for defined in w.defined_names.values():defined.attr_text=rewrite(defined.attr_text)
 
 
 def write_details(w,run,touched):
@@ -250,6 +315,7 @@ def write_details(w,run,touched):
 def validate_output(path,original,touched,expected,evidence_cells,template_warnings,write_manifest):
     w=openpyxl.load_workbook(path,data_only=False)
     if w.sheetnames!=list(original):raise ValueError('template worksheet order/names changed')
+    if expected and w.active.title!=expected[0][0]:raise ValueError('output does not open on main Checklist')
     for name,b in original.items():
         s=w[name]
         if set(map(str,s.merged_cells.ranges))!=b['merged'] or str(s.data_validations)!=b['validation']:
@@ -285,14 +351,19 @@ def build(manifest_path):
     w=openpyxl.load_workbook(io.BytesIO(run['template'].read_bytes()),data_only=False)
     main_name=run['profile']['main_sheet']
     if main_name not in w.sheetnames:raise ValueError(f'missing main worksheet {main_name}')
+    output_main=run['profile'].get('output_main_sheet',main_name)
+    rename_main(w,main_name,output_main)
+    main_name=output_main
+    run['profile']['main_sheet']=main_name
     main=w[main_name]
+    rows=target_rows(main)
+    extend_human_validation(main,rows)
     original=baseline(w)
     warnings=diagnostics(w)
     # Broken inherited heading anchors are reported, not silently repaired.
     validate_links(w)
     touched=set()
     locations,evidence_cells=write_details(w,run,touched)
-    rows=target_rows(main)
     expected=[]
     missing=[]
     mapped_ids=set(i for topic in run['profile']['topics'].values() for i in topic['ids'])
@@ -327,6 +398,7 @@ def build(manifest_path):
     absent=set(run['checks'])-set(rows)
     if absent:raise ValueError(f'checks missing from template: {sorted(absent)}')
     w.active=w.sheetnames.index(main_name)
+    if not w.views:w.views=[BookView(activeTab=w.sheetnames.index(main_name))]
     fd,tmp=tempfile.mkstemp(prefix='.consolidating-',suffix='.xlsx',dir=run['folder']);os.close(fd)
     temp_path=Path(tmp)
     write_manifest=[[name,coord,w[name][coord].value,link_signature(w[name][coord])] for name,coord in sorted(touched)]

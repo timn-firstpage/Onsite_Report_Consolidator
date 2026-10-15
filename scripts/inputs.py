@@ -10,7 +10,7 @@ from urllib.parse import urlsplit
 import openpyxl
 
 ROOT = Path(__file__).resolve().parents[1]
-STATUS = {'√':'✔', '✔':'✔', 'X':'✖', '✖':'✖', 'NA':'NA', 'N/A':'NA', '-':'-', 'Human check':'-', 'Human Check':'-'}
+STATUS = {'√':'✔', '✔':'✔', 'X':'✖', '✖':'✖', 'NA':'NA', 'N/A':'NA', '-':'-', 'Human check':'Human check', 'Human Check':'Human check'}
 
 
 def sha(data):

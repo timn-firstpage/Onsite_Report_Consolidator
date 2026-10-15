@@ -51,6 +51,10 @@ All observed issue tables have header row 1. Combined tables identify records by
 
 `scripts/profiles.json` owns exact destination worksheet names. Existing template row positions are discovered from B check IDs, not hardcoded; floating point artifacts such as `11.299999999` normalize only for numeric IDs. Text IDs remain exact (`11.10` never becomes `11.1`). D/E/F must be writable non-formula, non-hyperlink cells. G hyperlink metadata may be updated; a G formula requires an explicit adapter rather than an overwrite.
 
+`main_sheet` identifies the input template sheet `SEO Implementation Checklist`; `output_main_sheet` is `(auto) SEO Checklist`, explicitly requested by the user. The full prefixed original title would exceed Excel's 31-character limit. Rename only the generated copy and update internal hyperlinks, formulas, named references and chart series references. Source workbooks and the bundled template retain their original sheet names.
+
+The output status vocabulary is `✔ / ✖ / NA / - / Human check`. Source `Human Check` normalizes only its capitalization. Manual checks retain their reason and unavailable issue count. The status dropdown is extended for onsite cells; series 7 keeps its original dropdown and values. Missing reports use `-` plus `未检查`, not Human check.
+
 Detail headers are row 3, except Robots row 4. Existing notes below headers are preserved; imports start below the last occupied row with a gap. Known target headings match exact source headings first, then registered semantic aliases; remaining fields appear in additional columns. This retains original Issue descriptions, source IDs and extra evidence even when template fields are narrower. Provenance columns contain source filename/check/sheet/row/raw result. A summary block follows imported details; its rows are excluded from problem-detail counts.
 
 A split destination already exists in the supplied template for each 17/18/19/20 child check. Source naming changes therefore need no destination renaming. Preserve precise native names such as `18. Descriptions - Missing` for 18.1.
