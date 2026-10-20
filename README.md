@@ -4,6 +4,8 @@
 
 输出主表名为 `(auto) SEO Checklist`。`Human check` 独立保留并加入 onsite 下拉选项；未检查使用 `-`。主表重命名会同步更新引用及返回链接，GSC 的值和下拉选项保持原样。
 
+详情表只填原模板已有 schema，不新增 Source 栏位或底部汇总块。额外字段及来源追踪保存在 `.validation.json`。主表链接跳到对应明细起始位置，没有明细时跳到表头；详情表顶部返回对应主表主题行。每次重建这些导航链接并验证准确目标。
+
 ## 使用
 
 同一套 Skill 支持 Windows / macOS，使用 Python 3.10+、openpyxl 和 Pillow。先在仓库外的 venv 安装 `requirements.txt`；Pillow 用于保留模板截图，缺少时会明确停止。两边完整的安装命令见 [跨平台使用说明](references/platforms.md)。不需要本机安装 Excel 或连接 Google。

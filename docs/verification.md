@@ -23,3 +23,11 @@ At the October 15 baseline, native Excel recalculation/click testing, actual mac
 - Hosted CI for commit `b66bd7e` passed on Windows Python 3.10, Windows Python 3.12, and Apple Silicon macOS Python 3.12. Intel macOS Python 3.10 was still queued when this record was written. Consult the [actual run](https://github.com/timn-firstpage/Onsite_Report_Consolidator/actions/runs/39357223847) for its current status.
 - Tests cover fresh installation/image support, a read-only doctor, native and foreign absolute paths, relative separators, Chinese/spaced paths, NFC/NFD names, CLI invocation outside the repository and no-overwrite output publication/fallback cleanup. Missing Pillow now stops before template images can be silently dropped.
 - Native Excel UI/recalculation and Drive operations remain untested. This update does not read credentials or alter the uploader skill.
+
+## Existing schema and navigation fix — 2026-10-20
+
+The user requested existing detail schema only. Generated detail summary blocks, provenance columns and unmatched-field columns were removed. Source data and output-cell provenance now live in the validation sidecar; per-check results, Findings and Instruction remain in the main Checklist. Template headers, notes, images and original files remain intact.
+
+Controlled G/A1 navigation is rebuilt even when a stale hyperlink or HYPERLINK formula is present. Main links land on the check's first actual mapped detail cell, or the existing header for zero detail rows. A1 returns to the corresponding Checklist theme's first B row. Exact saved targets are verified, including rejection of a wrong target that happens to exist.
+
+Windows regression suite: 59 tests, 58 passed and one native macOS path test skipped. The real historical sample retained 37 checks, 1,086 source detail records in its sidecar, all four images, 197 internal links and 2,134 website/resource links. An independent schema comparison confirmed unchanged headers and no generated Source/summary blocks. The inherited 69 template diagnostics remain. Official skill validation passed. Hosted platform results must be checked for this revision separately; native Excel click testing was not performed.

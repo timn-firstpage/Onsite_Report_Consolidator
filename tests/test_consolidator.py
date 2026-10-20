@@ -186,8 +186,9 @@ class ConsolidationTests(unittest.TestCase):
         s=w['17.2 Page titles - Duplicate']
         self.assertEqual(s['A4'].value,'https://www.example.com/a')
         self.assertEqual(s['A4'].hyperlink.target,'https://www.example.com/a')
-        self.assertTrue(any(c.value=='17.2' for row in s for c in row))
-        self.assertTrue(any('page_titles_audit' in str(c.value) for row in s for c in row))
+        report=json.loads(p.with_suffix('.validation.json').read_text(encoding='utf-8'))
+        self.assertEqual(report['checks']['17.2']['details'][0]['source_check'],'17.2')
+        self.assertIn('page_titles_audit',report['checks']['17.2']['source_file'])
         main=w[OUTPUT_MAIN]
         r=next(row[0].row for row in main if row[1].value=='17.2')
         self.assertEqual(main.cell(r,4).value,'✖')
@@ -198,6 +199,56 @@ class ConsolidationTests(unittest.TestCase):
         self.report();p=self.build();original=p.read_bytes()
         with self.assertRaisesRegex(ValueError,'exists'):self.build()
         self.assertEqual(original,p.read_bytes())
+
+    def test_rebuild_stale_return_and_formula_navigation(self):
+        self.report()
+        w=openpyxl.load_workbook(self.template)
+        w['11. Sitemap']['A1'].hyperlink='https://old.example/checklist'
+        w['SEO Implementation Checklist']['G6']='=HYPERLINK("#old-anchor","Details")'
+        w.save(self.template)
+        p=self.build();w=openpyxl.load_workbook(p)
+        main=w[OUTPUT_MAIN];detail=w['11. Sitemap']
+        self.assertIsNone(detail['A1'].hyperlink.target)
+        self.assertEqual(detail['A1'].hyperlink.location,f"'{OUTPUT_MAIN}'!B6")
+        self.assertEqual(main['G6'].data_type,'s')
+        self.assertEqual(main['G6'].value,'11. Sitemap')
+        self.assertIn("'11. Sitemap'!A",main['G6'].hyperlink.location)
+
+    def test_navigation_uses_actual_detail_or_existing_header_without_new_blocks(self):
+        self.report()
+        p=self.build();w=openpyxl.load_workbook(p)
+        main=w[OUTPUT_MAIN];detail=w['11. Sitemap']
+        from workbook import internal_target
+        for row in main:
+            if str(row[1].value).startswith('11.'):
+                sheet,cell=internal_target(row[6].hyperlink.location)
+                self.assertEqual(sheet,detail.title)
+                self.assertEqual(cell,'A3')
+                self.assertEqual(detail[cell].value,'Sitemaps')
+
+    def test_detail_output_only_fills_existing_schema(self):
+        self.report('page_titles_audit',[f'17.{i}' for i in range(1,5)], [['17.2','https://www.example.com/a','old','new','fix']], {'17.2':'X'})
+        p=self.build();w=openpyxl.load_workbook(p);s=w['17.2 Page titles - Duplicate']
+        self.assertEqual([c.value for c in s[3]],['Address','Titles','New Title','Instructions'])
+        self.assertEqual(s.max_column,4)
+        self.assertEqual(s.max_row,4)
+        r=next(row[1].row for row in w[OUTPUT_MAIN] if row[1].value=='17.2')
+        self.assertEqual(w[OUTPUT_MAIN].cell(r,7).hyperlink.location,"'17.2 Page titles - Duplicate'!A4")
+
+    def test_navigation_validation_rejects_wrong_existing_target(self):
+        from workbook import validate_navigation,navigation
+        w=openpyxl.Workbook();s=w.active;s['A1']='link';s['B1']='correct';s['C1']='wrong'
+        navigation(s['A1'],s.title,'C1')
+        with self.assertRaisesRegex(ValueError,'target mismatch'):
+            validate_navigation(w,[[s.title,'A1',s.title,'B1']])
+
+    def test_unmappable_detail_row_stops_instead_of_adding_columns(self):
+        self.report('page_titles_audit',[f'17.{i}' for i in range(1,5)], [['17.2','https://www.example.com/a','old','new','fix']], {'17.2':'X'})
+        w=openpyxl.load_workbook(self.template);s=w['17.2 Page titles - Duplicate']
+        for c in s[3]:c.value='Unmapped '+c.coordinate
+        w.save(self.template)
+        with self.assertRaisesRegex(ValueError,'no source detail fields map'):
+            self.build()
 
     def test_output_tampering_detected(self):
         from workbook import verify
@@ -270,6 +321,7 @@ class ConsolidationTests(unittest.TestCase):
 
     def test_declared_asset_destination_is_clickable(self):
         self.manifest['asset_hosts']=['cdn.example.com']
+        w=openpyxl.load_workbook(self.template);w['17.2 Page titles - Duplicate']['E3']='Destination';w.save(self.template)
         p=self.report('page_titles_audit',[f'17.{i}' for i in range(1,5)], [['17.2','https://www.example.com/a','old','new','fix']], {'17.2':'X'})
         w=openpyxl.load_workbook(p);s=w['17. Page Title'];s['F1']='Destination';s['F2']='https://cdn.example.com/file.png';w.save(p)
         out=self.build();w=openpyxl.load_workbook(out)
@@ -277,12 +329,13 @@ class ConsolidationTests(unittest.TestCase):
         self.assertEqual(len(cells),1)
         self.assertEqual(cells[0].hyperlink.target,'https://cdn.example.com/file.png')
 
-    def test_extra_evidence_url_is_clickable(self):
+    def test_unmapped_evidence_is_retained_in_sidecar_without_extra_columns(self):
         p=self.report('page_titles_audit',[f'17.{i}' for i in range(1,5)], [['17.2','https://www.example.com/a','old','new','fix']], {'17.2':'X'})
         w=openpyxl.load_workbook(p);s=w['17. Page Title'];s['F1']='Evidence URL';s['F2']='https://evidence.example/screenshot';w.save(p)
         out=self.build();w=openpyxl.load_workbook(out)
-        c=next(c for row in w['17.2 Page titles - Duplicate'] for c in row if c.value=='https://evidence.example/screenshot')
-        self.assertEqual(c.hyperlink.target,'https://evidence.example/screenshot')
+        self.assertEqual(w['17.2 Page titles - Duplicate'].max_column,4)
+        report=json.loads(out.with_suffix('.validation.json').read_text(encoding='utf-8'))
+        self.assertEqual(report['checks']['17.2']['details'][0]['source_values']['Evidence URL'],'https://evidence.example/screenshot')
 
     def test_missing_other_template_check_marked_unchecked(self):
         from openpyxl.worksheet.datavalidation import DataValidation
@@ -295,8 +348,8 @@ class ConsolidationTests(unittest.TestCase):
     def test_named_extra_checklist_field_survives(self):
         p=self.report()
         w=openpyxl.load_workbook(p);s=w['Checklist'];s['F1']='Evidence limit';s['F2']='Sample only';w.save(p)
-        out=self.build();s=openpyxl.load_workbook(out)['11. Sitemap']
-        self.assertTrue(any(c.value=='Sample only' for row in s for c in row))
+        out=self.build();report=json.loads(out.with_suffix('.validation.json').read_text(encoding='utf-8'))
+        self.assertEqual(report['checks']['11.1']['extra_checklist']['Evidence limit'],'Sample only')
 
     def test_missing_image_destination_column_stops(self):
         w=openpyxl.Workbook();s=w.active;s.title='Checklist'
@@ -328,10 +381,9 @@ class ConsolidationTests(unittest.TestCase):
         gsc_rules=[v for v in s.data_validations.dataValidation if 'D2' in v.sqref]
         self.assertEqual(len(gsc_rules),1)
         self.assertNotIn('Human check',gsc_rules[0].formula1)
-        detail=w['11. Sitemap']
-        summary=next(row for row in detail if row[0].value=='11.3')
-        self.assertEqual(summary[1].value,'Human check')
-        self.assertIsNone(summary[2].value)
+        report=json.loads(out.with_suffix('.validation.json').read_text(encoding='utf-8'))
+        self.assertEqual(report['checks']['11.3']['status'],'Human check')
+        self.assertEqual(report['checks']['11.3']['raw_status'],'Human Check')
 
     def test_main_rename_updates_formulas_named_ranges_and_return_links(self):
         from openpyxl.workbook.defined_name import DefinedName
@@ -344,7 +396,7 @@ class ConsolidationTests(unittest.TestCase):
         self.assertNotIn('SEO Implementation Checklist',w.sheetnames)
         self.assertEqual(w['11. Sitemap']['L2'].value,"='(auto) SEO Checklist'!C1")
         self.assertEqual(w.defined_names['ChecklistTitle'].attr_text,"'(auto) SEO Checklist'!$C$1")
-        self.assertIn("'(auto) SEO Checklist'!",w['11. Sitemap']['A1'].hyperlink.target)
+        self.assertIn("'(auto) SEO Checklist'!",w['11. Sitemap']['A1'].hyperlink.location)
         self.assertIn('SEO Implementation Checklist',openpyxl.load_workbook(self.template).sheetnames)
 
     def test_main_is_active_when_template_has_no_workbook_view(self):
