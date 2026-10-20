@@ -1,19 +1,25 @@
 """CLI for explicitly selected local onsite report runs. No Google API calls."""
+import sys
+
+# Keep the diagnostic command read-only even on its first invocation.
+if len(sys.argv) > 1 and sys.argv[1] == 'doctor':
+    sys.dont_write_bytecode = True
+
 import argparse
 import io
 import json
 from pathlib import Path, PurePosixPath
 import stat
-import sys
 import zipfile
 
-import openpyxl
-
-from workbook import build, verify
+from paths import local_path
+from runtime import require_runtime, runtime_report
 
 
 def inventory(path):
-    path=Path(path)
+    require_runtime()
+    import openpyxl
+    path=local_path(path)
     def workbook_info(name,data):
         w=openpyxl.load_workbook(io.BytesIO(data),read_only=True,data_only=False)
         info={'file':name,'sheets':[{'name':s.title,'rows':s.max_row,'columns':s.max_column,'headers':[c.value for c in next(s.iter_rows(max_row=1))]} for s in w]}
@@ -46,9 +52,9 @@ def safe_zip_infos(z):
 
 
 def extract(archive,destination):
-    destination=Path(destination).resolve()
+    destination=local_path(destination)
     if destination.exists():raise ValueError('ZIP destination already exists; choose a new run workspace')
-    with zipfile.ZipFile(archive) as z:
+    with zipfile.ZipFile(local_path(archive)) as z:
         infos=safe_zip_infos(z)
         destination.mkdir(parents=True)
         for i in infos:
@@ -65,6 +71,7 @@ def main():
     if hasattr(sys.stderr,'reconfigure'):sys.stderr.reconfigure(encoding='utf-8')
     parser=argparse.ArgumentParser(description=__doc__)
     sub=parser.add_subparsers(dest='command',required=True)
+    sub.add_parser('doctor',help='read-only Python/dependency check, including template image support')
     p=sub.add_parser('inspect',help='read workbook headers; does not select reports or build')
     p.add_argument('path')
     p=sub.add_parser('extract',help='extract a selected ZIP into a new local run workspace')
@@ -75,10 +82,17 @@ def main():
     p.add_argument('path')
     args=parser.parse_args()
     try:
-        if args.command=='inspect':result=inventory(args.path)
+        if args.command=='doctor':
+            result=runtime_report()
+            print(json.dumps(result,ensure_ascii=False,indent=2))
+            return 0 if result['ok'] else 2
+        elif args.command=='inspect':result=inventory(args.path)
         elif args.command=='extract':result={'extracted_to':extract(args.archive,args.destination)}
-        elif args.command=='build':result={'output':str(build(args.manifest))}
-        else:result=verify(args.path)
+        else:
+            require_runtime()
+            from workbook import build, verify
+            if args.command=='build':result={'output':str(build(args.manifest))}
+            else:result=verify(args.path)
         print(json.dumps(result,ensure_ascii=False,indent=2,default=str))
     except (ValueError,OSError,KeyError,zipfile.BadZipFile) as e:
         print(json.dumps({'error':str(e)},ensure_ascii=False),file=sys.stderr)

@@ -6,10 +6,11 @@
 
 ## 使用
 
-Python 3.10+，Windows / macOS。先在仓库外的 venv 安装 `requirements.txt`，或使用已有包含 openpyxl 的解释器：
+同一套 Skill 支持 Windows / macOS，使用 Python 3.10+、openpyxl 和 Pillow。先在仓库外的 venv 安装 `requirements.txt`；Pillow 用于保留模板截图，缺少时会明确停止。两边完整的安装命令见 [跨平台使用说明](references/platforms.md)。不需要本机安装 Excel 或连接 Google。
 
 ```text
 python -m pip install -r requirements.txt
+python scripts/consolidate.py doctor
 python scripts/consolidate.py inspect "本次指定的 ZIP 或 run folder"
 python scripts/consolidate.py extract "本次指定的.zip" --destination "新的本地工作目录"
 python scripts/consolidate.py build --manifest "本次 run folder/run.json"
@@ -28,4 +29,6 @@ python scripts/consolidate.py verify "本次 run folder/Autocheck_onsite_audit_C
 python -m unittest discover -s tests -v
 ```
 
-测试及真实样本使用本地文件，不需要服务账号。样本中的客户数据、生成报告和 run manifest 不提交到仓库。模板原有 Summary 断引用、Google 导出公式和 heading/gid 链接会保留并单独记录，不能宣称整个工作簿无错误。尚未实测 macOS 或原生 Excel 的重算／点击行为。
+测试及真实样本使用本地文件，不需要服务账号。新增测试覆盖中文／空格路径、Mac 文件名 Unicode 规范化、相对路径分隔符、独立解释器和截图保留。GitHub Actions 配置了 Windows／macOS × Python 3.10／3.12 的同一测试集；是否通过以实际运行结果为准。
+
+样本中的客户数据、生成报告和 run manifest 不提交到仓库。模板原有 Summary 断引用、Google 导出公式和 heading/gid 链接会保留并单独记录，不能宣称整个工作簿无错误；原生 Excel 的重算／点击行为需另行验证。

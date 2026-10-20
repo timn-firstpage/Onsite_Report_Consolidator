@@ -5,9 +5,12 @@ import io
 import json
 from pathlib import Path
 import re
+import unicodedata
 from urllib.parse import urlsplit
 
 import openpyxl
+from paths import local_path, relative_input
+from runtime import require_runtime
 
 ROOT = Path(__file__).resolve().parents[1]
 STATUS = {'√':'✔', '✔':'✔', 'X':'✖', '✖':'✖', 'NA':'NA', 'N/A':'NA', '-':'-', 'Human check':'Human check', 'Human Check':'Human check'}
@@ -66,13 +69,7 @@ def canonical(header, profile):
 
 
 def relative_file(folder, name):
-    p = Path(name)
-    resolved = (folder / p).resolve()
-    if p.is_absolute() or not resolved.is_relative_to(folder) or resolved == folder:
-        raise ValueError(f'file must be relative and inside run folder: {name}')
-    if not resolved.is_file():
-        raise ValueError(f'missing input file: {name}')
-    return resolved
+    return relative_input(folder, name)
 
 
 def iso(value):
@@ -107,7 +104,7 @@ def filename_check(path, source, manifest, topic, ids):
         suffix = '_' + token + '_' + iso(source['date'])
         if name.endswith(suffix):
             company = name[:-len(suffix)]
-            if company != manifest['company']:
+            if unicodedata.normalize('NFC', company) != unicodedata.normalize('NFC', manifest['company']):
                 raise ValueError(f'filename company mismatch: {company!r}')
             matched = True
             break
@@ -116,7 +113,8 @@ def filename_check(path, source, manifest, topic, ids):
 
 
 def read_run(manifest_path):
-    manifest_path = Path(manifest_path).resolve()
+    require_runtime()
+    manifest_path = local_path(manifest_path)
     m = json.loads(manifest_path.read_text(encoding='utf-8-sig'))
     if not isinstance(m,dict):raise ValueError('manifest must be a JSON object')
     for key in ['run_id','run_folder','company','site_hosts','output_date','sources']:
@@ -129,13 +127,13 @@ def read_run(manifest_path):
         raise ValueError('sources must be a list of objects')
     if not isinstance(m['site_hosts'],list) or not isinstance(m.get('asset_hosts',[]),list):
         raise ValueError('site_hosts and asset_hosts must be lists')
-    folder = (manifest_path.parent / m['run_folder']).resolve()
+    folder = local_path(m['run_folder'], manifest_path.parent)
     if not folder.is_dir():
         raise ValueError('run_folder does not exist')
-    profile_path = (manifest_path.parent / m['profile']).resolve() if m.get('profile') else ROOT/'scripts/profiles.json'
+    profile_path = local_path(m['profile'], manifest_path.parent) if m.get('profile') else ROOT/'scripts/profiles.json'
     profile_data = profile_path.read_bytes()
     profile = json.loads(profile_data)
-    template = (manifest_path.parent / m['template']).resolve() if m.get('template') else ROOT/'assets/Onsite Checklist - TEMPLATE.xlsx'
+    template = local_path(m['template'], manifest_path.parent) if m.get('template') else ROOT/'assets/Onsite Checklist - TEMPLATE.xlsx'
     hosts = set(m['site_hosts'])
     asset_hosts = set(m.get('asset_hosts', []))
     if not all(isinstance(h, str) and re.fullmatch(r'[a-z0-9.-]+', h) for h in hosts | asset_hosts):

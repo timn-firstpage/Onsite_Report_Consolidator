@@ -19,6 +19,9 @@ from openpyxl.worksheet.cell_range import CellRange
 from openpyxl.workbook.views import BookView
 
 from inputs import canonical, check_id, norm, read_run, sha
+from paths import local_path
+from publication import publish_no_replace
+from runtime import require_runtime
 
 
 def link_signature(c):
@@ -410,11 +413,7 @@ def build(manifest_path):
         for p,digest in [(run['template'],run['template_sha256']),(Path(run['manifest_path']),run['manifest_sha256']),(Path(run['profile_path']),run['profile_sha256'])]:
             if sha(p.read_bytes())!=digest:raise ValueError(f'configuration changed during build: {p}')
         report={'schema_version':1,'run_id':m['run_id'],'company':m['company'],'site_hosts':m['site_hosts'],'output_date':m['output_date'],'created_utc':datetime.now(timezone.utc).isoformat(),'output_sha256':sha(temp_path.read_bytes()),'template_sha256':run['template_sha256'],'manifest_sha256':run['manifest_sha256'],'profile_sha256':run['profile_sha256'],'sources':run['sources'],'missing_checks':missing,'checks':{i:{'status':c['status'],'raw_status':c['raw_status'],'recorded_detail_rows':c['detail_count'],'source_file':c['source_file'],'summary_target':locations[i]} for i,c in run['checks'].items()},'validated_internal_links':link_count,'validated_website_links':len(evidence_cells),'template_warnings':warnings,'input_warnings':run['warnings'],'native_excel_recalculation':'not performed'}
-        # Windows rename refuses an existing destination; POSIX link provides that same guarantee.
-        try:
-            if os.name=='nt':os.rename(temp_path,output)
-            else:os.link(temp_path,output)
-        except FileExistsError:raise ValueError(f'output already exists: {output}')
+        report['publication_method']=publish_no_replace(temp_path,output)
         try:
             with sidecar.open('x',encoding='utf-8') as f:json.dump(report,f,ensure_ascii=False,indent=2)
         except Exception:
@@ -425,7 +424,8 @@ def build(manifest_path):
 
 
 def verify(path):
-    path=Path(path)
+    require_runtime()
+    path=local_path(path)
     report=json.loads(path.with_suffix('.validation.json').read_text(encoding='utf-8'))
     if sha(path.read_bytes())!=report['output_sha256']:raise ValueError('output hash changed since validation')
     w=openpyxl.load_workbook(path,data_only=False)

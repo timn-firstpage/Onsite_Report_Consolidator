@@ -19,9 +19,10 @@ Read [references/mapping.md](references/mapping.md) for the manifest, profiles a
 
 ## Execute
 
-Use an available Python 3.10+ with `openpyxl` from `requirements.txt`; on Windows quote paths with spaces. Do not install packages into the skill repository or modify existing upload skills.
+Use Python 3.10+ with **both openpyxl and Pillow** from `requirements.txt`. Pillow is required to preserve embedded template screenshots; missing image support must stop before building. Read [references/platforms.md](references/platforms.md) for Windows PowerShell and macOS zsh setup. Select an interpreter on the current machine, use a venv outside the skill, and invoke its absolute executable path; do not assume GUI Codex inherits a terminal's activated environment. Windows paths/venvs cannot be reused on a Mac. Do not install packages into the skill repository or modify existing upload skills.
 
 ```text
+python scripts/consolidate.py doctor
 python scripts/consolidate.py inspect "<selected ZIP, folder, or xlsx>"
 python scripts/consolidate.py extract "<selected ZIP>" --destination "<new workspace>"
 python scripts/consolidate.py build --manifest "<run folder>/run.json"
@@ -29,6 +30,8 @@ python scripts/consolidate.py verify "<run folder>/Autocheck_onsite_audit_<compa
 ```
 
 Run these relative to this skill directory, or use the absolute script path. Manifest paths resolve as documented, not against the shell working directory. The bundled template is `assets/Onsite Checklist - TEMPLATE.xlsx`; honor an explicit user template override.
+
+`doctor` is read-only: it reports the actual Python executable/version, OS/architecture, required dependency availability and bundled template existence. Run it using the same interpreter that will build the workbook. A successful check does not prove that a different interpreter has the same packages. Native paths and quoted `~` home paths work for CLI/config locations; keep source-file paths relative to the run, preferably with `/` on both systems.
 
 Inspect first, then write an explicit `run.json`. The agent may accommodate column order changes, registered aliases, added evidence columns and combined versus split detail sheets. Record material schema changes in a run-specific copy of the JSON profile and rerun validation. Unknown mappings are not permission to fuzzy-match check IDs or change conclusions. Stop on conflicts and ask only for the unresolved choice.
 
